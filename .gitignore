@@ -7,7 +7,8 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
-.DS_Store
+**/.DS_Store
+ControlDesk-Server/__pycache__/
 /build
 /captures
 .externalNativeBuild
