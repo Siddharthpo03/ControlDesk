@@ -1,6 +1,7 @@
 package com.example.controldesk
 
 import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.changedToUp
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -54,11 +55,11 @@ suspend fun PointerInputScope.detectMultiFingerGestures(
                 event = awaitPointerEvent()
                 val pressed = event.changes.filter { it.pressed }
 
-                // Update max fingers — never goes down
                 val currentCount = pressed.size
+                android.util.Log.d("GESTURE_RAW", "loop tick: rawChanges=${event.changes.size} pressed=$currentCount changedToUp=${event.changes.map { it.changedToUp() }}")
+
                 if (currentCount > maxFingers) maxFingers = currentCount
 
-                // All fingers lifted — classify and break
                 if (currentCount == 0) break
 
                 val now = System.currentTimeMillis()
@@ -166,21 +167,29 @@ suspend fun PointerInputScope.detectMultiFingerGestures(
                     }
 
                     currentCount >= 3 -> {
-                        // Track centroid for 3+ fingers
-                        val validPressed = pressed.filter { lastPos.containsKey(it.id.value) }
-                        if (validPressed.isNotEmpty()) {
-                            val avgDx = validPressed.map {
-                                it.position.x - lastPos[it.id.value]!!.first
-                            }.average().toFloat()
-                            val avgDy = validPressed.map {
-                                it.position.y - lastPos[it.id.value]!!.second
-                            }.average().toFloat()
+                        val deltas = mutableListOf<Pair<Float, Float>>()
+
+                        pressed.forEach { change ->
+                            val prev = lastPos[change.id.value]
+                            if (prev != null) {
+                                deltas.add(
+                                    Pair(
+                                        change.position.x - prev.first,
+                                        change.position.y - prev.second
+                                    )
+                                )
+                            }
+                            lastPos[change.id.value] = Pair(change.position.x, change.position.y)
+                        }
+
+                        if (deltas.isNotEmpty()) {
+                            val avgDx = deltas.map { it.first }.average().toFloat()
+                            val avgDy = deltas.map { it.second }.average().toFloat()
                             totalDx += avgDx
                             totalDy += avgDy
                         }
-                        pressed.forEach {
-                            lastPos[it.id.value] = Pair(it.position.x, it.position.y)
-                        }
+
+                        android.util.Log.d("GESTURE3", "fingers=$currentCount deltas=${deltas.size} totalDx=$totalDx totalDy=$totalDy maxFingers=$maxFingers")
                     }
                 }
             }
